@@ -36,8 +36,13 @@
   <nav class="main-nav" aria-label="Ana Modüller">
     <ul class="nav-tabs" role="tablist">
       <li>
-        <button type="button" role="tab" aria-selected="true" data-tab="tab-turkiye-map" class="tab-btn active">
-          1. Türkiye 81 İl Risk Haritası &amp; Maruziyet Tanısı (Aşama II–III)
+        <button type="button" role="tab" aria-selected="true" data-tab="tab-citizen-home" class="tab-btn active">
+          🏠 Ana Sayfa: Yaşadığım Yerin Sel Karnesi (Vatandaş Rehberi)
+        </button>
+      </li>
+      <li>
+        <button type="button" role="tab" aria-selected="false" data-tab="tab-turkiye-map" class="tab-btn">
+          1. Türkiye 81 İl Haritası &amp; Maruziyet Tanısı (Aşama II–III)
         </button>
       </li>
       <li>
@@ -59,8 +64,227 @@
   </nav>
 
   <main class="app-main">
-    <!-- ÜST BİLİMSEL ÖZET KARTLARI -->
-    <section class="kpi-strip" aria-label="Çok Ölçekli Makale ve Türkiye Bulguları">
+    <!-- ANA SAYFA: SIRADAN BİR VATANDAŞIN / LİSE MEZUNUNUN KENDİ YERİ İÇİN ANLAYABİLECEĞİ SEL RİSKİ DASHBOARD'U -->
+    <section id="tab-citizen-home" class="tab-panel active" aria-labelledby="heading-citizen">
+      <!-- Sade Dil Üst Özet Şeridi -->
+      <div class="citizen-hero-banner">
+        <div class="citizen-hero-text">
+          <span class="citizen-pill">Herkes İçin Anlaşılır Sel ve Su Baskını Rehberi</span>
+          <h2 id="heading-citizen">Yaşadığınız İl ve Mahalle İçin Sel Riski Ne Kadar?</h2>
+          <p>
+            Karmaşık mühendislik formülleriyle uğraşmadan; <strong>1) Yaşadığınız ili seçin</strong>, <strong>2) Evinizin ve sokağınızın durumunu 5 basit soruda işaretleyin</strong>. Sistemimiz bilimsel verileri kullanarak sizin için <strong>kişisel sel karnenizi</strong>, <strong>riskin nedenlerini</strong> ve <strong>alabileceğiniz somut önlemleri</strong> anında çıkarsın.
+          </p>
+        </div>
+        <div class="citizen-hero-quickstats">
+          <div class="c-stat-box">
+            <span>Seçili İlin Türkiye Sırası</span>
+            <strong id="cit-hero-rank">1. / 81 İl</strong>
+            <small id="cit-hero-provname">Rize (Doğu Karadeniz)</small>
+          </div>
+          <div class="c-stat-box highlight">
+            <span>Sizin Evinizin / Sokağınızın Riski</span>
+            <strong id="cit-hero-personal-score">%78 — Yüksek</strong>
+            <small id="cit-hero-personal-sub">İl riski + bina konumunuz</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="citizen-grid">
+        <!-- SOL SÜTUN: İL SEÇİMİ + 5 BASİT GÜNLÜK SORU -->
+        <div class="card citizen-input-card">
+          <div class="card-header">
+            <div>
+              <h3>Adım 1: Yaşadığınız İli ve Evinizin Konumunu Seçin</h3>
+              <p class="subtitle">Bulunduğunuz ili listeden seçin, ardından mahallenizi en iyi anlatan kutucuklara tıklayın.</p>
+            </div>
+          </div>
+
+          <!-- İl Seçimi ve Hızlı Butonlar -->
+          <div class="citizen-prov-selector">
+            <label for="select-citizen-province" class="citizen-label">
+              1. Hangi İlde Yaşıyorsunuz? (81 İl)
+            </label>
+            <div class="citizen-prov-row">
+              <select id="select-citizen-province" class="citizen-select-lg"></select>
+              <button type="button" id="btn-citizen-reset" class="btn btn-secondary">
+                Standart Daireye Sıfırla
+              </button>
+            </div>
+            <div class="citizen-quick-provs" aria-label="Hızlı İl Seçimi">
+              <span>Hızlı Seç:</span>
+              <button type="button" class="chip-btn" data-prov="34">İstanbul</button>
+              <button type="button" class="chip-btn" data-prov="6">Ankara</button>
+              <button type="button" class="chip-btn" data-prov="35">İzmir</button>
+              <button type="button" class="chip-btn" data-prov="53">Rize</button>
+              <button type="button" class="chip-btn" data-prov="37">Kastamonu</button>
+              <button type="button" class="chip-btn" data-prov="74">Bartın</button>
+              <button type="button" class="chip-btn" data-prov="7">Antalya</button>
+              <button type="button" class="chip-btn" data-prov="16">Bursa</button>
+              <button type="button" class="chip-btn" data-prov="63">Şanlıurfa</button>
+              <button type="button" class="chip-btn" data-prov="61">Trabzon</button>
+            </div>
+          </div>
+
+          <!-- 5 Basit Mahalle / Bina Sorusu -->
+          <div class="citizen-questions-wrapper">
+            <div class="citizen-q-header">
+              <h4>2. Evinizin ve Sokağınızın Durumu (5 Basit Soru)</h4>
+              <p>Aynı ilde bile yüksekteki bir apartman dairesi ile dere kenarındaki zemin katın riski çok farklıdır. Size uyan şıkkı seçin:</p>
+            </div>
+
+            <!-- Soru 1 -->
+            <div class="citizen-q-block">
+              <div class="citizen-q-title">🌊 1. Eviniz bir dereye, çaya veya nehir yatağına ne kadar yakın?</div>
+              <div class="citizen-choice-grid" data-question="streamDist">
+                <button type="button" class="choice-btn" data-val="safe">
+                  <strong>Uzak / Yüksekte</strong>
+                  <span>Dere yatağından uzaktayım (500 m+) veya yüksek bir mahalledeyim</span>
+                </button>
+                <button type="button" class="choice-btn active" data-val="medium">
+                  <strong>Orta Mesafede</strong>
+                  <span>Yakınlarda (100–500 m) dere veya su kanalı var ama koruma duvarı mevcut</span>
+                </button>
+                <button type="button" class="choice-btn" data-val="risky">
+                  <strong>Çok Yakın / Çukurda</strong>
+                  <span>Dere kenarındayım (&lt;100 m), üstü kapatılmış dere yolundayım veya çukur ovadayım</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Soru 2 -->
+            <div class="citizen-q-block">
+              <div class="citizen-q-title">🏢 2. Eviniz veya iş yeriniz binanın kaçıncı katında?</div>
+              <div class="citizen-choice-grid" data-question="floorLevel">
+                <button type="button" class="choice-btn active" data-val="safe">
+                  <strong>Üst Katlar (1. Kat ve Üzeri)</strong>
+                  <span>Sokaktan gelen suyun daire içine doğrudan girme ihtimali yok</span>
+                </button>
+                <button type="button" class="choice-btn" data-val="medium">
+                  <strong>Giriş / Zemin Kat</strong>
+                  <span>Sokak veya kaldırım seviyesiyle hemen hemen aynı hizadayım</span>
+                </button>
+                <button type="button" class="choice-btn" data-val="risky">
+                  <strong>Bodrum / Kot Altı / Zemin Dükkan</strong>
+                  <span>Yol seviyesinin altındayım; sokakta su birikirse ilk dolacak noktadayım</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Soru 3 -->
+            <div class="citizen-q-block">
+              <div class="citizen-q-title">🌧️ 3. Şiddetli yağmur yağdığında sokağınızda ve rögarlarda ne oluyor?</div>
+              <div class="citizen-choice-grid" data-question="streetDrain">
+                <button type="button" class="choice-btn" data-val="safe">
+                  <strong>Hızla Tahliye Oluyor</strong>
+                  <span>Yağmur suyu ızgaraları açık, sokakta neredeyse hiç su birikmiyor</span>
+                </button>
+                <button type="button" class="choice-btn active" data-val="medium">
+                  <strong>Kaldırım Boyu Gölleniyor</strong>
+                  <span>Kuvvetli sağanakta sokakta su birikiyor ama yağmur durunca çekiliyor</span>
+                </button>
+                <button type="button" class="choice-btn" data-val="risky">
+                  <strong>Rögarlar Taşıyor / Göle Dönüyor</strong>
+                  <span>Her sağanakta rögarlar geri tepiyor veya yakınımızdaki alt geçit kapanıyor</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Soru 4 -->
+            <div class="citizen-q-block">
+              <div class="citizen-q-title">🌳 4. Mahallenizde toprak/yeşil alan mı çok, yoksa her yer beton mu?</div>
+              <div class="citizen-choice-grid" data-question="greenCover">
+                <button type="button" class="choice-btn" data-val="safe">
+                  <strong>Bol Yeşil ve Toprak Alan</strong>
+                  <span>Yağmur suyunu emebilecek geniş bahçeler, parklar veya ormanlık alanlar var</span>
+                </button>
+                <button type="button" class="choice-btn active" data-val="medium">
+                  <strong>Yarı Yarıya (Karışık)</strong>
+                  <span>Apartmanlar ve asfalt yolların yanında küçük bahçeler/parklar bulunuyor</span>
+                </button>
+                <button type="button" class="choice-btn" data-val="risky">
+                  <strong>Tamamen Beton ve Asfalt</strong>
+                  <span>Suyun toprağa sızacağı yer yok; yağan tüm yağmur hızla caddeye akıyor</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Soru 5 -->
+            <div class="citizen-q-block">
+              <div class="citizen-q-title">⛰️ 5. Mahallenizde dik yamaç (heyelan) veya deniz kıyısı etkisi var mı?</div>
+              <div class="citizen-choice-grid" data-question="slopeCoast">
+                <button type="button" class="choice-btn active" data-val="safe">
+                  <strong>Düz ve Güvenli Konum</strong>
+                  <span>Üzerimize çamur/kaya akacak dik bir yamaç veya deniz kabarması riski yok</span>
+                </button>
+                <button type="button" class="choice-btn" data-val="medium">
+                  <strong>Eğimli Yokuş Altı</strong>
+                  <span>Yukarı mahallelerden bizim sokağa doğru hızlı yağmur suyu akışı oluyor</span>
+                </button>
+                <button type="button" class="choice-btn" data-val="risky">
+                  <strong>Dik Yamaç Eteği veya Deniz Kıyısı</strong>
+                  <span>Dik dağ/tepe yamacının hemen altındayım VEYA deniz/göl kıyısında alçak kottayım</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SAĞ SÜTUN: KİŞİSEL SEL KARNESİ, NEDENLER VE EYLEM REHBERİ -->
+        <div class="card citizen-result-card">
+          <div id="citizen-report-container">
+            <!-- JS ile canlı olarak doldurulur -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ALT BÖLÜM: BÜYÜKŞEHİR YANILGISI (MAKALENİN ANA BULGUSUNUN SADE ANLATIMI) & DİĞER SEKMELERE GEÇİŞ -->
+      <div class="citizen-bottom-grid">
+        <div class="card citizen-myth-card">
+          <h3>💡 Çok Önemli Bilgi: "Büyükşehir Yanılgısı" Nedir? (Neden Sadece Toplam Para Hasarına Bakılmaz?)</h3>
+          <p>
+            Birçok geleneksel sel haritası, bir ilde oluşan <strong>toplam parasal hasara (TL)</strong> bakar. Ancak bu durum büyük bir yanılgı yaratır:
+          </p>
+          <div class="myth-compare-row">
+            <div class="myth-box wrong">
+              <span class="myth-badge bad">❌ Yanıltıcı Bakış (Ham Para Kaybı)</span>
+              <strong>"İstanbul ve Ankara En Riskli Görünür"</strong>
+              <p>
+                İstanbul'da milyonlarca bina ve iş yeri olduğu için, orta şiddette bir yağmur bile toplamda milyarlarca TL hasar yazar. Sadece toplam paraya bakan bir bilgisayar modeli, nüfusu az olan Karadeniz illerini "düşük riskli" zanneder.
+              </p>
+            </div>
+            <div class="myth-box right">
+              <span class="myth-badge good">✅ Doğru Bakış (Kişi ve Bina Başına Gerçek Tehlike)</span>
+              <strong>"Gerçekte Rize, Bartın, Kastamonu Çok Daha Risklidir"</strong>
+              <p>
+                Bu uygulamanın dayandığı bilimsel makale, toplam para yerine <strong>"100 binadan kaçı sele maruz kalıyor?"</strong> oranına (HLRR) bakar. Böylece nüfus yanılgısı temizlenir ve yaşadığınız yerin <strong>gerçek doğa/altyapı tehlikesi</strong> ortaya çıkar.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card citizen-nav-helper">
+          <h3>🔬 Daha Fazla Detay ve Mühendislik Araçları (Diğer Sekmeler)</h3>
+          <p class="subtitle">Arka plandaki bilimsel modelleri, 81 il haritasını ve 20 teknik göstergeyi incelemek için üstteki veya aşağıdaki sekmeleri kullanabilirsiniz:</p>
+          <div class="citizen-tab-links">
+            <button type="button" class="btn btn-secondary full-width citizen-jump-btn" data-target-tab="tab-turkiye-map">
+              🗺️ 1. Türkiye 81 İl İnteraktif Haritasını Aç →
+            </button>
+            <button type="button" class="btn btn-secondary full-width citizen-jump-btn" data-target-tab="tab-simulator">
+              🎛️ 2. 20 Mühendislik Göstergesi &amp; 6 Yapay Zekâ Simülatörünü Aç →
+            </button>
+            <button type="button" class="btn btn-secondary full-width citizen-jump-btn" data-target-tab="tab-spatial-cv">
+              🧪 3. Bölgeler Arası Model Doğrulama (LORO-CV) Laboratuvarı →
+            </button>
+            <button type="button" class="btn btn-secondary full-width citizen-jump-btn" data-target-tab="tab-custom-csv">
+              📂 4. Kendi CSV Verini Test Et &amp; Makale Metodolojisi →
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ÜST BİLİMSEL ÖZET KARTLARI (Teknik sekmelerde görünür) -->
+    <section id="scientific-kpi-strip" class="kpi-strip" aria-label="Çok Ölçekli Makale ve Türkiye Bulguları" hidden>
       <article class="kpi-card">
         <span class="kpi-tag">Aşama I • Sentetik Kıyaslama (n = 1.117.957)</span>
         <div class="kpi-value">LR AUC: 0.93 <small>vs RF: 0.84</small></div>
@@ -84,7 +308,7 @@
     </section>
 
     <!-- SEKME 1: TÜRKİYE 81 İL HARİTASI VE MARUZİYET-BÜYÜKLÜK KARIŞTIRICI TANISI -->
-    <section id="tab-turkiye-map" class="tab-panel active" aria-labelledby="heading-map">
+    <section id="tab-turkiye-map" class="tab-panel" aria-labelledby="heading-map" hidden>
       <div class="panel-grid-map">
         <div class="card map-card">
           <div class="card-header">

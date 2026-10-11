@@ -26,7 +26,14 @@ const state = {
   threshold: 0.50,
   applyPlatt: false,
   spatialScale: "province",
-  spatialTarget: "floodRiskHigh"
+  spatialTarget: "floodRiskHigh",
+  citizenAnswers: {
+    streamDist: "medium",  // safe | medium | risky
+    floorLevel: "safe",    // safe | medium | risky
+    streetDrain: "medium", // safe | medium | risky
+    greenCover: "medium",  // safe | medium | risky
+    slopeCoast: "safe"     // safe | medium | risky
+  }
 };
 
 // Coğrafi koordinatları (Enlem 35.8–42.2, Boylam 25.8–44.8) SVG (1000 x 480) düzlemine izdüşürür
@@ -133,7 +140,10 @@ function renderTurkiyeMap() {
 
 function selectProvince(code) {
   state.selectedProvinceCode = code;
+  const citSelect = document.getElementById("select-citizen-province");
+  if (citSelect) citSelect.value = String(code);
   renderTurkiyeMap();
+  renderCitizenDashboard();
 }
 
 function renderSelectedProvinceCard() {
@@ -640,6 +650,425 @@ function parseUploadedCSV(text) {
   runBatchClassification(rows);
 }
 
+// ============================================================================
+// ANA SAYFA: VATANDAŞ & LİSE MEZUNU SEL KARNESİ DASHBOARD MANTIĞI
+// ============================================================================
+const PLAIN_REASON_EXPLANATIONS = {
+  MonsoonIntensity: {
+    title: "Ani ve Şiddetli Sağanak Yağışlar",
+    desc: "Bu ilde yağmurlar kısa sürede çok yoğun yağdığı için toprak ve rögarlar suyu emmeye yetişemiyor."
+  },
+  Deforestation: {
+    title: "Orman ve Bitki Örtüsü Kaybı",
+    desc: "Yukarı yamaçlarda suyu tutacak ağaç ve bitki örtüsü azaldığı için yağmur suyu hızla aşağı akıyor."
+  },
+  InadequatePlanning: {
+    title: "Dere Yatağı Yakınında Yapılaşma",
+    desc: "Eski dere yatakları ve taşkın ovaları yapılaşmaya açıldığı için su kendi doğal yolunu arıyor."
+  },
+  DisasterPreparedness: {
+    title: "Erken Uyarı ve Hazırlık Eksikliği",
+    desc: "Mahalle bazlı sel erken uyarı sistemleri ve tahliye hazırlıkları henüz tüm riskli sokakları kapsamıyor."
+  },
+  ClimateChange: {
+    title: "İklim Değişikliği ve Fırtına Artışı",
+    desc: "Son yıllarda alışılmışın dışında, çok daha sert ve düzensiz fırtına/sağanak yağışlar görülüyor."
+  },
+  Siltation: {
+    title: "Dere Yataklarının Kum ve Çamurla Dolması",
+    desc: "Akarsu ve dere yataklarının dibi taş, kum ve rusubatla dolduğu için su taşma seviyesine çok çabuk ulaşıyor."
+  },
+  RiverManagement: {
+    title: "Dere Islahı ve Koruma Duvarı Yetersizliği",
+    desc: "Dere kenarlarındaki koruma duvarları (seddeler) ve yatak temizliği şiddetli taşkınlar için yetersiz kalabiliyor."
+  },
+  TopographyDrainage: {
+    title: "Arazi Eğimi ve Çukur Alan Etkisi",
+    desc: "Dik yamaçlardan hızla inen sular veya çukur ova tabanında biriken sular doğal yoldan kolay tahliye olamıyor."
+  },
+  Watersheds: {
+    title: "Yukarı Havza Su Tutma Zayıflığı",
+    desc: "İlin beslendiği yan dereler aynı anda kabardığında ana nehir kollarında su seviyesi hızla yükseliyor."
+  },
+  CoastalVulnerability: {
+    title: "Deniz Kabarması ve Kıyı Geri Tepmesi",
+    desc: "Fırtınalı havalarda deniz seviyesi yükseldiği için derelerin denize dökülmesi zorlaşıyor ve su geriye şişiyor."
+  },
+  Urbanization: {
+    title: "Yoğun Betonlaşma ve Asfalt Yüzeyler",
+    desc: "Toprak alanların yerini asfalt ve beton aldığı için yağmur suyu toprağa sızamayıp sokaklarda sel oluşturuyor."
+  },
+  DrainageSystems: {
+    title: "Yağmur Suyu Izgara ve Kanal Yetersizliği",
+    desc: "Şehir içi yağmur suyu boruları ve cadde ızgaraları kuvvetli sağanaklarda kapasiteyi kaldıramıyor."
+  },
+  DamsQuality: {
+    title: "Baraj, Gölet ve Bent Güvenlik Riski",
+    desc: "Akarsu üzerindeki su tutucu yapıların ve menfezlerin aşırı yağışta doluluk ve kapak yönetimi kritik önem taşıyor."
+  },
+  AgriculturalPractices: {
+    title: "Tarım Arazilerinde Yüzey Akışı",
+    desc: "Yanlış toprak işleme ve drenaj kanallarının kapanması nedeniyle tarım alanlarından yerleşimlere çamurlu su akıyor."
+  },
+  Encroachments: {
+    title: "Dere Yataklarının Daraltılması ve Kapatılması",
+    desc: "Derelerin üstünün kapatılması, dar köprü/menfezler yapılması suyun geçişini tıkayarak taşkına yol açıyor."
+  },
+  IneffectiveDisasterPreparedness: {
+    title: "Müdahale ve Tahliye Koordinasyon Güçlüğü",
+    desc: "Sel anında alt geçitlerin kapatılması ve mahalle tahliyesinde gecikmeler yaşanabiliyor."
+  },
+  Landslides: {
+    title: "Heyelan ve Çamur Akıntısı Tehlikesi",
+    desc: "Toprak suya doyduğunda dik yamaçlardan kopan toprak ve ağaçlar dere yataklarını tıkayarak seli büyütüyor."
+  },
+  WetlandLoss: {
+    title: "Doğal Sünger Alanların (Sulak Alan) Kaybı",
+    desc: "Fazla suyu bir sünger gibi emen sazlık, gölet ve taşkın çayırları kurutulduğu için su doğrudan şehre iniyor."
+  },
+  PopulationScore: {
+    title: "Yüksek Nüfus ve Bina Yoğunluğu",
+    desc: "Çok sayıda insan ve araç aynı dar cadde ve alt geçitleri kullandığı için sel anında etkilenme oranı artıyor."
+  },
+  DeterioratingInfrastructure: {
+    title: "Eskiyen Köprü, Menfez ve Altyapı",
+    desc: "Eski köprü ayakları ve dar büzler sel sularının getirdiği dal ve çöplerle tıkanarak suyu sokağa taşırıyor."
+  }
+};
+
+function computeCitizenAdjustedScores(prov) {
+  const custom = { ...prov.ordinalScores };
+  const ans = state.citizenAnswers;
+
+  // 1. Dere yakınlığı -> Encroachments, RiverManagement, TopographyDrainage
+  const streamDelta = ans.streamDist === "risky" ? 4 : ans.streamDist === "safe" ? -3 : 0;
+  custom.Encroachments = Math.max(0, Math.min(18, custom.Encroachments + streamDelta));
+  custom.RiverManagement = Math.max(0, Math.min(18, custom.RiverManagement + streamDelta));
+
+  // 2. Kat durumu -> IneffectiveDisasterPreparedness, InadequatePlanning
+  const floorDelta = ans.floorLevel === "risky" ? 4 : ans.floorLevel === "medium" ? 2 : -2;
+  custom.InadequatePlanning = Math.max(0, Math.min(18, custom.InadequatePlanning + floorDelta));
+  custom.DisasterPreparedness = Math.max(0, Math.min(18, custom.DisasterPreparedness + floorDelta));
+
+  // 3. Sokak ve rögar durumu -> DrainageSystems, DeterioratingInfrastructure
+  const drainDelta = ans.streetDrain === "risky" ? 4 : ans.streetDrain === "safe" ? -3 : 0;
+  custom.DrainageSystems = Math.max(0, Math.min(18, custom.DrainageSystems + drainDelta));
+  custom.DeterioratingInfrastructure = Math.max(0, Math.min(18, custom.DeterioratingInfrastructure + drainDelta));
+
+  // 4. Yeşil alan vs Betonlaşma -> Urbanization, Deforestation
+  const greenDelta = ans.greenCover === "risky" ? 3 : ans.greenCover === "safe" ? -3 : 0;
+  custom.Urbanization = Math.max(0, Math.min(18, custom.Urbanization + greenDelta));
+  custom.Deforestation = Math.max(0, Math.min(18, custom.Deforestation + greenDelta));
+
+  // 5. Yamaç / Kıyı durumu -> Landslides, CoastalVulnerability, TopographyDrainage
+  const slopeDelta = ans.slopeCoast === "risky" ? 4 : ans.slopeCoast === "medium" ? 2 : -2;
+  custom.Landslides = Math.max(0, Math.min(18, custom.Landslides + slopeDelta));
+  custom.TopographyDrainage = Math.max(0, Math.min(18, custom.TopographyDrainage + slopeDelta));
+
+  return custom;
+}
+
+function renderCitizenDashboard() {
+  const container = document.getElementById("citizen-report-container");
+  const prov = TURKIYE_PROVINCES.find((p) => p.code === state.selectedProvinceCode);
+  if (!container || !prov) return;
+
+  // Hızlı il butonlarının aktiflik durumu
+  document.querySelectorAll(".chip-btn").forEach((chip) => {
+    chip.classList.toggle("active", Number(chip.getAttribute("data-prov")) === prov.code);
+  });
+
+  // 81 il içinde HLRR sıralaması
+  const sortedByHlr = [...TURKIYE_PROVINCES].sort((a, b) => b.hlrScore - a.hlrScore);
+  const provRank = sortedByHlr.findIndex((p) => p.code === prov.code) + 1;
+  const trAvgPct = Math.round(
+    (TURKIYE_PROVINCES.reduce((acc, p) => acc + p.hlrScore, 0) / TURKIYE_PROVINCES.length) * 100
+  );
+
+  // İlin temel risk yüzdesi (0–100)
+  const provBasePct = Math.round(prov.hlrScore * 100);
+
+  // Kullanıcının 5 cevabına göre mahalle/bina bazlı kişisel risk yüzdesi
+  const ans = state.citizenAnswers;
+  let localModifier = 0;
+  if (ans.streamDist === "risky") localModifier += 14;
+  else if (ans.streamDist === "safe") localModifier -= 10;
+
+  if (ans.floorLevel === "risky") localModifier += 16;
+  else if (ans.floorLevel === "medium") localModifier += 7;
+  else localModifier -= 8;
+
+  if (ans.streetDrain === "risky") localModifier += 11;
+  else if (ans.streetDrain === "safe") localModifier -= 7;
+
+  if (ans.greenCover === "risky") localModifier += 6;
+  else if (ans.greenCover === "safe") localModifier -= 5;
+
+  if (ans.slopeCoast === "risky") localModifier += 10;
+  else if (ans.slopeCoast === "medium") localModifier += 4;
+  else localModifier -= 4;
+
+  // Bilimsel model olasılığı ile birleştirilmiş kişisel risk skoru (5 ile 98 arası)
+  const customScores = computeCitizenAdjustedScores(prov);
+  const customPred = predictStage1AllModels(customScores, state.threshold, state.applyPlatt);
+  const personalPct = Math.max(
+    5,
+    Math.min(98, Math.round(provBasePct * 0.65 + customPred.probLR * 100 * 0.35 + localModifier))
+  );
+
+  // Risk seviyesi etiketi ve rengi
+  let gradeLabel = "DÜŞÜK RİSK (Güvenli Konum)";
+  let gradeColor = "#10b981";
+  let gradeBg = "rgba(16, 185, 129, 0.18)";
+  if (personalPct >= 78) {
+    gradeLabel = "ÇOK YÜKSEK RİSK (Acil Önlem Gerekli)";
+    gradeColor = "#ef4444";
+    gradeBg = "rgba(239, 68, 68, 0.22)";
+  } else if (personalPct >= 60) {
+    gradeLabel = "YÜKSEK RİSK (Dikkatli Olunmalı)";
+    gradeColor = "#f97316";
+    gradeBg = "rgba(249, 115, 22, 0.22)";
+  } else if (personalPct >= 42) {
+    gradeLabel = "ORTA RİSK (Tedbirli Olunmalı)";
+    gradeColor = "#eab308";
+    gradeBg = "rgba(234, 179, 8, 0.20)";
+  }
+
+  // Üst Hero kutularını güncelle
+  const heroRankEl = document.getElementById("cit-hero-rank");
+  const heroProvEl = document.getElementById("cit-hero-provname");
+  const heroPersEl = document.getElementById("cit-hero-personal-score");
+  const heroSubEl = document.getElementById("cit-hero-personal-sub");
+  if (heroRankEl) heroRankEl.textContent = `${provRank}. / 81 İl`;
+  if (heroProvEl) heroProvEl.textContent = `${prov.plate} ${prov.name} (${prov.region})`;
+  if (heroPersEl) {
+    heroPersEl.textContent = `%${personalPct} — ${personalPct >= 78 ? "Çok Yüksek" : personalPct >= 60 ? "Yüksek" : personalPct >= 42 ? "Orta" : "Düşük"}`;
+    heroPersEl.style.color = gradeColor;
+  }
+  if (heroSubEl) {
+    const diff = personalPct - provBasePct;
+    heroSubEl.textContent = `İl geneli %${provBasePct} (${diff >= 0 ? "+" + diff : diff} puan bina/sokak etkisi)`;
+  }
+
+  // İlin en yüksek 4 risk göstergesini bul ve sade Türkçeye çevir
+  const top4Predictors = [...STAGE1_PREDICTORS]
+    .map((p) => ({
+      ...p,
+      val: prov.ordinalScores[p.id],
+      plain: PLAIN_REASON_EXPLANATIONS[p.id] || { title: p.nameTr, desc: p.descTr }
+    }))
+    .sort((a, b) => b.val - a.val)
+    .slice(0, 4);
+
+  // Kişiselleştirilmiş yorum cümlesi
+  let verdictText = "";
+  if (provBasePct >= 62 && personalPct >= 65) {
+    verdictText = `<strong>${prov.name}</strong> ili Türkiye'de taşkın tehlikesi en yüksek iller arasındadır (81 ilde <strong>${provRank}. sıra</strong>). Üstelik işaretlediğiniz mahalle ve bina özellikleri de riskinizi <strong>%${personalPct}</strong> seviyesinde tutuyor. Şiddetli yağış uyarılarında su baskınına karşı mutlaka hazırlıklı olmalısınız.`;
+  } else if (provBasePct < 55 && personalPct >= 60) {
+    verdictText = `<strong>${prov.name}</strong> ilinin genel sel riski Türkiye ortalamasının altında veya orta düzeydedir (<strong>%${provBasePct}</strong>). <strong>Ancak dikkat:</strong> Seçtiğiniz bina/sokak konumu (dereye yakınlık, bodrum/zemin kat veya rögar taşması) sizin kişisel su baskını riskinizi <strong>%${personalPct} (Yüksek Risk)</strong> seviyesine çıkarıyor!`;
+  } else if (provBasePct >= 62 && personalPct < 58) {
+    verdictText = `<strong>${prov.name}</strong> ili genel olarak yüksek sel tehlikesine sahiptir (<strong>%${provBasePct}</strong>, Türkiye'de ${provRank}. sıra). Ancak evinizin <strong>üst katta ve dere yatağından uzakta</strong> olması daire içi su baskını riskinizi <strong>%${personalPct}</strong> seviyesine düşürüyor. Yine de sel anında mahalle yolları ve bina girişi kapanabilir.`;
+  } else {
+    verdictText = `<strong>${prov.name}</strong> ilinin genel taşkın duyarlılığı (<strong>%${provBasePct}</strong>) ve işaretlediğiniz ev/sokak konumu (<strong>%${personalPct}</strong>) güvenli/ılımlı aralıktadır. Temel yağmur suyu ve bina tedbirlerini korumanız yeterlidir.`;
+  }
+
+  // 3 Sütunlu Kişiselleştirilmiş Önlem Listesi
+  const homeActions = [];
+  if (ans.floorLevel === "risky" || ans.floorLevel === "medium") {
+    homeActions.push("<strong>Geri Tepme Ventili (Çekvalf):</strong> Zemin/bodrum katta olduğunuz için şiddetli yağmurda kanalizasyonun evin içinden taşmasını önleyen çekvalf mutlaka taktırın.");
+    homeActions.push("<strong>Kapı ve Pencere Su Bariyeri:</strong> Bina girişine ve bodrum pencerelerine takıp çıkarılabilen su bendi veya kum torbası hazırlayın.");
+  } else {
+    homeActions.push("<strong>Bina Bodrumu ve Elektrik Panosu:</strong> Üst katta otursanız bile binanın elektrik panosu ve asansör kuyusu su alırsa günlerce elektriksiz kalabilirsiniz; panoyu yüksek kota aldırın.");
+  }
+  homeActions.push("<strong>Sigorta ve Evrak Güvenliği:</strong> Konut/iş yeri sigortanızda <em>Sel ve Su Baskını</em> klozunun aktif olduğunu kontrol edin; tapu ve önemli belgeleri alt çekmecelerde bırakmayın.");
+
+  const emergencyActions = [];
+  if (ans.streamDist === "risky" || ans.streamDist === "medium") {
+    emergencyActions.push("<strong>Dere Kenarından Uzaklaşın:</strong> MGM <em>Turuncu/Kırmızı</em> yağış uyarısı verdiğinde dere kenarındaki yolları kullanmayın, su seviyesi birkaç dakikada yükselebilir.");
+  }
+  if (ans.slopeCoast === "risky") {
+    emergencyActions.push("<strong>Yamaç / Kıyı Tehlikesi:</strong> Dik yamaç altındaysanız toprak kayması (heyelan) seslerine ve bulanık çamurlu su akışına karşı hemen üst katlara veya güvenli alana geçin.");
+  }
+  emergencyActions.push("<strong>Araç ve Alt Geçit Kuralı:</strong> Yağış başlamadan aracınızı bodrum otoparktan veya dere boyundan yüksek bir caddeye çekin. Su birikmiş alt geçitlere araçla asla girmeyin.");
+  emergencyActions.push("<strong>Acil Durum:</strong> Su binaya giriyorsa önce elektrik şalterini ve doğalgaz vanasını kapatın, asansörü kullanmayın ve <strong>112 Acil Çağrı Merkezi</strong>'ni arayın.");
+
+  const civicActions = [
+    `<strong>Yağmur Suyu Izgara Temizliği:</strong> ${prov.name} Belediyesi / Su ve Kanalizasyon İdaresinden sonbahar ve ilkbahar yağışları öncesi sokağınızdaki rögarların temizlenmesini talep edin.`,
+    `<strong>DSİ Dere Islahı ve Rüsubat Temizliği:</strong> ${prov.basin} Havzası'ndaki dere yataklarında biriken çamur, taş ve çöplerin temizlenmesi için DSİ Bölge Müdürlüğüne başvurabilirsiniz.`,
+    `<strong>AFAD İl Risk Planı (İRAP):</strong> ${prov.name} AFAD İl Müdürlüğünün hazırladığı İl Afet Risk Azaltma Planı'nda mahallenizin taşkın haritasını sorgulayın.`
+  ];
+
+  // Aynı bölgedeki komşu illerle hızlı kıyaslama
+  const regionPeers = TURKIYE_PROVINCES
+    .filter((p) => p.region === prov.region)
+    .sort((a, b) => b.hlrScore - a.hlrScore)
+    .slice(0, 5);
+
+  container.innerHTML = `
+    <div class="report-karne-header">
+      <div>
+        <span class="badge-stage">${prov.region} Bölgesi • ${prov.basin} Su Havzası</span>
+        <div class="report-karne-title">${prov.plate} ${prov.name} — Kişisel Sel ve Su Baskını Karnesi</div>
+      </div>
+      <div class="karne-grade-badge" style="background:${gradeBg};color:${gradeColor};border:1px solid ${gradeColor}">
+        ${gradeLabel}
+      </div>
+    </div>
+
+    <div class="karne-meters-grid">
+      <div class="karne-meter-box">
+        <div class="m-label">1. ${prov.name} İlinin Genel Sel Tehlikesi</div>
+        <div class="m-score" style="color:${getRiskColor(prov.hlrScore)}">%${provBasePct} <small style="font-size:12px;color:#94a3b8">(81 İlde ${provRank}. Sıra)</small></div>
+        <div class="thermo-bar">
+          <div class="thermo-fill" style="width:${provBasePct}%;background:${getRiskColor(prov.hlrScore)}"></div>
+        </div>
+        <small style="color:#cbd5e1;font-size:11.5px">Türkiye Ortalaması: <strong>%${trAvgPct}</strong> • Resmi Sınıf: <strong>${prov.hlrrRating}</strong></small>
+      </div>
+
+      <div class="karne-meter-box">
+        <div class="m-label">2. Sizin Evinizin / Sokağınızın Kişisel Riski</div>
+        <div class="m-score" style="color:${gradeColor}">%${personalPct} <small style="font-size:12px;color:#94a3b8">(5 Cevabınız Dahil)</small></div>
+        <div class="thermo-bar">
+          <div class="thermo-fill" style="width:${personalPct}%;background:${gradeColor}"></div>
+        </div>
+        <small style="color:#cbd5e1;font-size:11.5px">Yapay Zekâ (LR) Tahmini: <strong>%${Math.round(customPred.probLR * 100)}</strong> • Kat ve Dere Etkisi: <strong>${localModifier >= 0 ? "+" + localModifier : localModifier} Puan</strong></small>
+      </div>
+    </div>
+
+    <div class="karne-verdict-box">
+      💬 <strong>Sizin İçin Sonuç Özeti:</strong> ${verdictText}
+    </div>
+
+    <h4>🔍 ${prov.name} İlinde Sel Riskini Artıran En Önemli 4 Sebep (Sade Anlatım)</h4>
+    <div class="citizen-reasons-list">
+      ${top4Predictors
+        .map((r, i) => {
+          const score10 = Math.round((r.val / 18) * 100) / 10;
+          return `
+            <div class="reason-item">
+              <div class="reason-top">
+                <span>${i + 1}. ${r.plain.title}</span>
+                <span class="mono" style="color:${score10 >= 6.5 ? "#f97316" : "#38bdf8"}">${score10.toFixed(1)} / 10</span>
+              </div>
+              <p class="reason-desc">${r.plain.desc}</p>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+
+    <h4>🛠️ Bu Sonuca Göre Sizin İçin 3 Adımlı Önlem ve Eylem Rehberi</h4>
+    <div class="citizen-actions-grid">
+      <div class="action-col">
+        <h5>🏠 1. Evinizde ve Binanızda</h5>
+        <ul>
+          ${homeActions.map((a) => `<li>${a}</li>`).join("")}
+        </ul>
+      </div>
+      <div class="action-col">
+        <h5>⛈️ 2. Yağış Uyarısı Geldiğinde</h5>
+        <ul>
+          ${emergencyActions.map((a) => `<li>${a}</li>`).join("")}
+        </ul>
+      </div>
+      <div class="action-col">
+        <h5>🏛️ 3. Resmi Kurumlardan Talep</h5>
+        <ul>
+          ${civicActions.map((a) => `<li>${a}</li>`).join("")}
+        </ul>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding-top:10px;border-top:1px solid rgba(148,163,184,0.16)">
+      <div style="font-size:12px;color:#94a3b8">
+        <strong>${prov.region} Bölgesi Karşılaştırması:</strong>
+        ${regionPeers
+          .map(
+            (p) =>
+              `<span style="margin-left:6px;color:${p.code === prov.code ? "#38bdf8" : "#cbd5e1"};font-weight:${p.code === prov.code ? "700" : "400"}">${p.name}: %${Math.round(p.hlrScore * 100)}</span>`
+          )
+          .join(" • ")}
+      </div>
+      <button type="button" id="btn-citizen-to-sim" class="btn btn-primary">
+        Bu Cevapları 20 Göstergeli Mühendislik Simülatörüne Aktar →
+      </button>
+    </div>
+  `;
+
+  document.getElementById("btn-citizen-to-sim")?.addEventListener("click", () => {
+    state.simTitle = `${prov.name} (${prov.plate}) — Kişisel Mahalle/Bina Profili`;
+    state.simScores = computeCitizenAdjustedScores(prov);
+    syncSlidersToState();
+    updateSimulatorResults();
+    document.querySelector('[data-tab="tab-simulator"]')?.click();
+  });
+}
+
+function initCitizenDashboard() {
+  const selectEl = document.getElementById("select-citizen-province");
+  if (selectEl) {
+    selectEl.innerHTML = TURKIYE_PROVINCES.map(
+      (p) =>
+        `<option value="${p.code}" ${p.code === state.selectedProvinceCode ? "selected" : ""}>${p.plate} — ${p.name} (${p.region} • Genel Risk: %${Math.round(p.hlrScore * 100)})</option>`
+    ).join("");
+
+    selectEl.addEventListener("change", (e) => {
+      selectProvince(Number(e.target.value));
+    });
+  }
+
+  // Hızlı il çipleri
+  document.querySelectorAll(".chip-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const code = Number(btn.getAttribute("data-prov"));
+      selectProvince(code);
+    });
+  });
+
+  // 5 Basit Soru seçim butonları
+  document.querySelectorAll(".citizen-choice-grid").forEach((grid) => {
+    const qKey = grid.getAttribute("data-question");
+    grid.querySelectorAll(".choice-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-val");
+        state.citizenAnswers[qKey] = val;
+        grid.querySelectorAll(".choice-btn").forEach((b) => b.classList.toggle("active", b === btn));
+        renderCitizenDashboard();
+      });
+    });
+  });
+
+  // Standart daireye sıfırlama
+  document.getElementById("btn-citizen-reset")?.addEventListener("click", () => {
+    state.citizenAnswers = {
+      streamDist: "medium",
+      floorLevel: "safe",
+      streetDrain: "medium",
+      greenCover: "medium",
+      slopeCoast: "safe"
+    };
+    document.querySelectorAll(".citizen-choice-grid").forEach((grid) => {
+      const qKey = grid.getAttribute("data-question");
+      const targetVal = state.citizenAnswers[qKey];
+      grid.querySelectorAll(".choice-btn").forEach((b) => {
+        b.classList.toggle("active", b.getAttribute("data-val") === targetVal);
+      });
+    });
+    renderCitizenDashboard();
+  });
+
+  // Alt bölümdeki diğer sekmelere hızlı geçiş butonları
+  document.querySelectorAll(".citizen-jump-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetTab = btn.getAttribute("data-target-tab");
+      document.querySelector(`[data-tab="${targetTab}"]`)?.click();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  renderCitizenDashboard();
+}
+
 // BAŞLATMA VE OLAY DİNLEYİCİLERİ
 function initApp() {
   // Maruziyet-Büyüklük Karıştırıcı Tanısı hesapla ve göster
@@ -651,6 +1080,8 @@ function initApp() {
   // Sekme geçişleri
   const tabBtns = document.querySelectorAll(".tab-btn");
   const tabPanels = document.querySelectorAll(".tab-panel");
+  const sciKpiStrip = document.getElementById("scientific-kpi-strip");
+
   tabBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetId = btn.getAttribute("data-tab");
@@ -663,6 +1094,10 @@ function initApp() {
         panel.classList.toggle("active", isMatch);
         panel.hidden = !isMatch;
       });
+      // Bilimsel KPI şeridi yalnızca 4 teknik sekmede gösterilir, Vatandaş Ana Sayfasında kafa karıştırmaz
+      if (sciKpiStrip) {
+        sciKpiStrip.hidden = targetId === "tab-citizen-home";
+      }
     });
   });
 
@@ -708,11 +1143,13 @@ function initApp() {
     document.getElementById("label-threshold-val").textContent = state.threshold.toFixed(2);
     updateSimulatorResults();
     renderTurkiyeMap();
+    renderCitizenDashboard();
   });
 
   document.getElementById("check-platt-scaling")?.addEventListener("change", (e) => {
     state.applyPlatt = e.target.checked;
     updateSimulatorResults();
+    renderCitizenDashboard();
   });
 
   // Mekânsal CV Kontrolleri
@@ -765,6 +1202,7 @@ function initApp() {
       generatedAt: new Date().toISOString(),
       referencePaper: PAPER_METADATA,
       selectedProvince: prov,
+      citizenAnswers: state.citizenAnswers,
       activeSimulation: simResult,
       exposureConfoundDiagnostic: diag,
       turkiyeSpatialValidation: spatialResult
@@ -779,6 +1217,7 @@ function initApp() {
   });
 
   // İlk çizimleri çalıştır
+  initCitizenDashboard();
   initSimulatorControls();
   renderTurkiyeMap();
   updateSimulatorResults();
