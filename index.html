@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TR-TaşkınRisk ML | Türkiye Çok Ölçekli Taşkın Risk İndeksi Sınıflandırma ve Mekânsal Doğrulama Platformu</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=20261011-2">
 </head>
 <body>
   <header class="app-header">
@@ -731,6 +731,21 @@
     </form>
   </dialog>
 
-  <script type="module" src="./app.js"></script>
+  <script>
+    document.addEventListener("click", function (e) {
+      var jumpBtn = e.target && e.target.closest ? e.target.closest(".citizen-jump-btn") : null;
+      if (!jumpBtn) return;
+      e.preventDefault();
+      var targetId = jumpBtn.getAttribute("data-target-tab");
+      if (window.activateTab) {
+        window.activateTab(targetId, true);
+        return;
+      }
+      var tabBtn = document.querySelector('.tab-btn[data-tab="' + targetId + '"]');
+      if (tabBtn) tabBtn.click();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  </script>
+  <script type="module" src="./app.js?v=20261011-2"></script>
 </body>
 </html>

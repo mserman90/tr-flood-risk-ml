@@ -8,13 +8,13 @@ import {
   THRESHOLD_SENSITIVITY_TABLE,
   TURKIYE_PRESETS,
   TURKIYE_PROVINCES
-} from "./data-turkiye.js";
+} from "./data-turkiye.js?v=20261011-2";
 
 import {
   predictStage1AllModels,
   runExposureConfoundDiagnostic,
   runTurkiyeSpatialExperiment
-} from "./ml-engine.js";
+} from "./ml-engine.js?v=20261011-2";
 
 const state = {
   selectedProvinceCode: 53, // Varsayılan: Rize (Doğu Karadeniz yüksek taşkın duyarlılığı)
@@ -1000,9 +1000,41 @@ function renderCitizenDashboard() {
     state.simScores = computeCitizenAdjustedScores(prov);
     syncSlidersToState();
     updateSimulatorResults();
-    document.querySelector('[data-tab="tab-simulator"]')?.click();
+    activateTab("tab-simulator", true);
   });
 }
+
+function activateTab(targetId, scrollToTop = false) {
+  if (!targetId) return;
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  const tabPanels = document.querySelectorAll(".tab-panel");
+  const sciKpiStrip = document.getElementById("scientific-kpi-strip");
+
+  tabBtns.forEach((b) => {
+    const isMatch = b.getAttribute("data-tab") === targetId;
+    b.classList.toggle("active", isMatch);
+    b.setAttribute("aria-selected", isMatch ? "true" : "false");
+  });
+
+  tabPanels.forEach((panel) => {
+    const isMatch = panel.id === targetId;
+    panel.classList.toggle("active", isMatch);
+    panel.hidden = !isMatch;
+    panel.style.display = isMatch ? "block" : "none";
+  });
+
+  if (sciKpiStrip) {
+    const hideKpi = targetId === "tab-citizen-home";
+    sciKpiStrip.hidden = hideKpi;
+    sciKpiStrip.style.display = hideKpi ? "none" : "";
+  }
+
+  if (scrollToTop) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+window.activateTab = activateTab;
+window.__tabHandlerReady = true;
 
 function initCitizenDashboard() {
   const selectEl = document.getElementById("select-citizen-province");
@@ -1059,10 +1091,10 @@ function initCitizenDashboard() {
 
   // Alt bölümdeki diğer sekmelere hızlı geçiş butonları
   document.querySelectorAll(".citizen-jump-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
       const targetTab = btn.getAttribute("data-target-tab");
-      document.querySelector(`[data-tab="${targetTab}"]`)?.click();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      activateTab(targetTab, true);
     });
   });
 
@@ -1078,27 +1110,21 @@ function initApp() {
   document.getElementById("stat-r-collinear").textContent = diag.rPopBldgDensity.toFixed(2);
 
   // Sekme geçişleri
-  const tabBtns = document.querySelectorAll(".tab-btn");
-  const tabPanels = document.querySelectorAll(".tab-panel");
-  const sciKpiStrip = document.getElementById("scientific-kpi-strip");
-
-  tabBtns.forEach((btn) => {
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetId = btn.getAttribute("data-tab");
-      tabBtns.forEach((b) => {
-        b.classList.toggle("active", b === btn);
-        b.setAttribute("aria-selected", b === btn ? "true" : "false");
-      });
-      tabPanels.forEach((panel) => {
-        const isMatch = panel.id === targetId;
-        panel.classList.toggle("active", isMatch);
-        panel.hidden = !isMatch;
-      });
-      // Bilimsel KPI şeridi yalnızca 4 teknik sekmede gösterilir, Vatandaş Ana Sayfasında kafa karıştırmaz
-      if (sciKpiStrip) {
-        sciKpiStrip.hidden = targetId === "tab-citizen-home";
-      }
+      activateTab(targetId, false);
     });
+  });
+
+  // Belge düzeyinde (delegated) sekme atlama dinleyicisi (güvence için)
+  document.addEventListener("click", (e) => {
+    const jumpBtn = e.target.closest?.(".citizen-jump-btn");
+    if (jumpBtn) {
+      e.preventDefault();
+      const targetTab = jumpBtn.getAttribute("data-target-tab");
+      activateTab(targetTab, true);
+    }
   });
 
   // Harita kontrolleri
@@ -1125,7 +1151,7 @@ function initApp() {
     state.simScores = { ...prov.ordinalScores };
     syncSlidersToState();
     updateSimulatorResults();
-    document.querySelector('[data-tab="tab-simulator"]')?.click();
+    activateTab("tab-simulator", true);
   });
 
   // Simülatör sıfırlama, eşik ve Platt ölçekleme
