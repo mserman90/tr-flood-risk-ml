@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TR-TaşkınRisk ML | Türkiye Çok Ölçekli Taşkın Risk İndeksi Sınıflandırma ve Mekânsal Doğrulama Platformu</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-badge" aria-hidden="true">
+        <svg viewBox="0 0 36 36" width="32" height="32" fill="none">
+          <rect width="36" height="36" rx="8" fill="#0284c7"/>
+          <path d="M6 23C9.5 19.5 13 26.5 18 22C23 17.5 26.5 24.5 30 21" stroke="#e0f2fe" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M6 28C9.5 24.5 13 31.5 18 27C23 22.5 26.5 29.5 30 26" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="18" cy="12" r="4" fill="#fbbf24"/>
+        </svg>
+      </div>
+      <div>
+        <div class="eyebrow">MDPI Water 2026, 18(20), 2515 • Benavides-Muñoz &amp; Benavides-Ortega Uyarlaması</div>
+        <h1>TR-TaşkınRisk ML: Çok Ölçekli Taşkın Risk İndeksi ve Mekânsal Doğrulama Platformu</h1>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" id="btn-open-paper-modal" class="btn btn-secondary">
+        Makale Özeti &amp; Denklemler
+      </button>
+      <button type="button" id="btn-export-report" class="btn btn-primary">
+        Analiz Raporu İndir (JSON)
+      </button>
+    </div>
+  </header>
+
+  <nav class="main-nav" aria-label="Ana Modüller">
+    <ul class="nav-tabs" role="tablist">
+      <li>
+        <button type="button" role="tab" aria-selected="true" data-tab="tab-turkiye-map" class="tab-btn active">
+          1. Türkiye 81 İl Risk Haritası &amp; Maruziyet Tanısı (Aşama II–III)
+        </button>
+      </li>
+      <li>
+        <button type="button" role="tab" aria-selected="false" data-tab="tab-simulator" class="tab-btn">
+          2. Canlı Havza/İlçe 20-Gösterge &amp; 6-ML Simülatörü (Aşama I)
+        </button>
+      </li>
+      <li>
+        <button type="button" role="tab" aria-selected="false" data-tab="tab-spatial-cv" class="tab-btn">
+          3. Mekânsal Çapraz Doğrulama (LORO-CV) &amp; Kıyaslama Laboratuvarı
+        </button>
+      </li>
+      <li>
+        <button type="button" role="tab" aria-selected="false" data-tab="tab-custom-csv" class="tab-btn">
+          4. Kendi Verini Test Et (CSV) &amp; Metodoloji Rehberi
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <main class="app-main">
+    <!-- ÜST BİLİMSEL ÖZET KARTLARI -->
+    <section class="kpi-strip" aria-label="Çok Ölçekli Makale ve Türkiye Bulguları">
+      <article class="kpi-card">
+        <span class="kpi-tag">Aşama I • Sentetik Kıyaslama (n = 1.117.957)</span>
+        <div class="kpi-value">LR AUC: 0.93 <small>vs RF: 0.84</small></div>
+        <p class="kpi-desc">20 tam sayı (0–19) toplamsal ordinal göstergede <strong>Lojistik Regresyon</strong>, doğrusal hiperdüzlem uyumu sayesinde ağaç modellerini geçer.</p>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-tag">Maruziyet-Büyüklük Karıştırıcı Tanısı (Bölüm 2.7.2)</span>
+        <div class="kpi-value" id="kpi-confound-val">r = 0.63 → −0.03</div>
+        <p class="kpi-desc">Ham TL taşkın kaybı nüfusla çarpıktır (<span class="mono">r = 0.63</span>). <strong>Birim Maruziyet Başına Kayıp Oranı (HLRR)</strong> bu yanılsamayı temizler.</p>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-tag">Aşama II &amp; III • Gerçek Coğrafya Rastgele Bölme</span>
+        <div class="kpi-value">RF AUC: 0.79 / 0.85</div>
+        <p class="kpi-desc">Gerçek coğrafyada sıralama tersine döner: Rastgele 70/30 bölmede <strong>Random Forest</strong> ve <strong>LightGBM/CatBoost</strong> liderliği alır.</p>
+      </article>
+      <article class="kpi-card highlight">
+        <span class="kpi-tag">Mekânsal Bölgeler Arası Transfer (LORO-CV)</span>
+        <div class="kpi-value">Ağaçlar −%31 • LR Lider (0.64)</div>
+        <p class="kpi-desc">Eğitimde görülmeyen coğrafi bölgelere transferde ağaç toplulukları çökerken, <strong>Lojistik Regresyon</strong> en az kaybı yaşayarak en iyi genellemeyi sağlar.</p>
+      </article>
+    </section>
+
+    <!-- SEKME 1: TÜRKİYE 81 İL HARİTASI VE MARUZİYET-BÜYÜKLÜK KARIŞTIRICI TANISI -->
+    <section id="tab-turkiye-map" class="tab-panel active" aria-labelledby="heading-map">
+      <div class="panel-grid-map">
+        <div class="card map-card">
+          <div class="card-header">
+            <div>
+              <h2 id="heading-map">Türkiye 81 İl Taşkın Risk İndeksi ve Maruziyet Karıştırıcı Haritası</h2>
+              <p class="subtitle">İlin üzerine tıklayarak 20 gerçek dünya göstergesini inceleyin veya sağdaki simülatöre aktarın.</p>
+            </div>
+            <div class="map-controls">
+              <label class="control-group">
+                <span>Hedef Değişken (Bölüm 2.7.2):</span>
+                <select id="select-map-mode">
+                  <option value="hlrr">Normalize Kayıp Oranı (FloodRiskHigh / HLRR — Doğru Hedef)</option>
+                  <option value="raw_tl">Ham TL Beklenen Kayıp (Nüfus Karıştırıcılı — Yanıltıcı Hedef)</option>
+                  <option value="lr_prob">Lojistik Regresyon Tahmin Olasılığı (P(Taşkın))</option>
+                  <option value="rf_prob">Random Forest Tahmin Olasılığı (P(Taşkın))</option>
+                </select>
+              </label>
+              <label class="control-group">
+                <span>Coğrafi Bölge Filtresi:</span>
+                <select id="select-region-filter">
+                  <option value="ALL">Tüm Türkiye (81 İl)</option>
+                  <option value="Karadeniz">Karadeniz Bölgesi</option>
+                  <option value="Marmara">Marmara Bölgesi</option>
+                  <option value="Akdeniz">Akdeniz Bölgesi</option>
+                  <option value="Ege">Ege Bölgesi</option>
+                  <option value="İç Anadolu">İç Anadolu Bölgesi</option>
+                  <option value="Doğu Anadolu">Doğu Anadolu Bölgesi</option>
+                  <option value="Güneydoğu Anadolu">Güneydoğu Anadolu Bölgesi</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <!-- TÜRKİYE 81 İL İNTERAKTİF SVG HARİTASI -->
+          <div class="turkiye-map-container">
+            <svg id="svg-turkiye-map" viewBox="0 0 1000 480" role="img" aria-label="Türkiye 81 İl İnteraktif Taşkın Risk Haritası"></svg>
+            <div class="map-legend">
+              <span class="legend-item"><i class="dot risk-vhigh"></i> Çok Yüksek (≥0.82)</span>
+              <span class="legend-item"><i class="dot risk-high"></i> Nispeten Yüksek (0.62–0.81)</span>
+              <span class="legend-item"><i class="dot risk-mod"></i> Orta (0.42–0.61)</span>
+              <span class="legend-item"><i class="dot risk-low"></i> Düşük (&lt;0.42)</span>
+            </div>
+          </div>
+
+          <!-- MARUZİYET-BÜYÜKLÜK KARIŞTIRICI TANISI KUTUSU (BÖLÜM 2.7.2) -->
+          <div class="diagnostic-banner">
+            <div class="diag-col">
+              <h3>Maruziyet-Büyüklük Karıştırıcı Tanısı (Exposure-Size Confound Diagnostic)</h3>
+              <p>
+                Makalenin <strong>Bölüm 2.7.2</strong> bulgusuna göre, ulusal risk indekslerindeki ham parasal hasar (TL/USD Beklenen Yıllık Kayıp), ilin nüfusu ve bina stoku ile yüksek korelasyon gösterir (<strong id="diag-r-raw">r = 0.63</strong>). Bu hedefle eğitilen bir model, taşkına duyarlı Rize, Artvin, Kastamonu veya Bartın yerine yalnızca büyükşehirleri (İstanbul, Ankara, İzmir) "yüksek riskli" olarak öğrenir. Hedef değişken <strong>Maruziyet Başına Tarihsel Kayıp Oranı (HLRR)</strong> olarak yeniden kurulduğunda nüfus korelasyonu <strong id="diag-r-hlr">r = −0.03</strong> seviyesine iner.
+              </p>
+            </div>
+            <div class="diag-metrics">
+              <div class="mini-stat bad">
+                <span>Ham TL Hasar × Nüfus (r)</span>
+                <strong id="stat-r-pop-raw">0.63</strong>
+                <small>Karıştırıcılı (Confounded)</small>
+              </div>
+              <div class="mini-stat good">
+                <span>Normalize Oran × Nüfus (r)</span>
+                <strong id="stat-r-pop-hlr">-0.03</strong>
+                <small>Temiz (Arındırılmış Hedef)</small>
+              </div>
+              <div class="mini-stat warn">
+                <span>Nüfus × Bina Yoğunluğu (r)</span>
+                <strong id="stat-r-collinear">0.94</strong>
+                <small>&gt;0.92 (Bina yoğunluğu elendi)</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SAĞ PANEL: SEÇİLİ İL DETAYI VE ARAMA -->
+        <aside class="card province-inspector" aria-label="İl Risk Detay Denetleyicisi">
+          <search class="province-search-box">
+            <label for="input-province-search">81 İl İçinde Ara (İsim, Plaka veya Havza):</label>
+            <input type="search" id="input-province-search" placeholder="Örn: Rize, 53, Kastamonu, Çoruh, İstanbul...">
+          </search>
+
+          <div id="selected-province-card" class="selected-province-body">
+            <!-- JS ile doldurulur -->
+          </div>
+
+          <div class="inspector-actions">
+            <button type="button" id="btn-load-province-to-sim" class="btn btn-primary full-width">
+              Bu İlin 20 Göstergesini Canlı Simülatöre Yükle →
+            </button>
+          </div>
+
+          <div class="province-table-wrapper">
+            <h3>İl Sıralaması (Filtrelenen İller)</h3>
+            <div class="table-scroll">
+              <table class="data-table compact" id="table-provinces">
+                <thead>
+                  <tr>
+                    <th>Plaka &amp; İl</th>
+                    <th>Bölge / Havza</th>
+                    <th>HLRR Skoru</th>
+                    <th>Ham TL</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-provinces"></tbody>
+              </table>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- SEKME 2: CANLI 20-GÖSTERGE & 6-ML SİNIFLANDIRICI SİMÜLATÖRÜ (AŞAMA I) -->
+    <section id="tab-simulator" class="tab-panel" aria-labelledby="heading-sim" hidden>
+      <div class="panel-grid-sim">
+        <!-- SOL: 20 ORDİNAL GÖSTERGE KONTROLLERİ -->
+        <div class="card sliders-card">
+          <div class="card-header">
+            <div>
+              <h2 id="heading-sim">20 Ordinal Hidro-Çevresel ve Sosyo-Ekonomik Gösterge (0–19 Ölçeği)</h2>
+              <p class="subtitle">Makale Bölüm 2.1 &amp; Tablo 1/6: 4 fonksiyonel alanda sınırlı tam sayı (step-function, düşük entropi) göstergeler.</p>
+            </div>
+            <div class="preset-bar">
+              <label for="select-preset">Türkiye Havza Arketipi Seçin:</label>
+              <select id="select-preset"></select>
+              <button type="button" id="btn-reset-sliders" class="btn btn-secondary btn-sm">Ortalamaya Sıfırla (5)</button>
+            </div>
+          </div>
+
+          <div id="sliders-domains-container" class="domains-grid">
+            <!-- JS ile 4 fonksiyonel alandaki 20 kaydırıcı oluşturulur -->
+          </div>
+        </div>
+
+        <!-- SAĞ: 6 ML MODELİ TAHMİNİ, EŞİK DUYARLILIĞI VE KALİBRASYON -->
+        <div class="sim-results-column">
+          <div class="card prediction-hero-card">
+            <div class="pred-hero-top">
+              <div>
+                <span class="badge-stage">Canlı Model Çıkarımı • Denklem (1) &amp; (2)</span>
+                <h3 id="sim-active-title">Seçili Havza / İl Profili</h3>
+              </div>
+              <div class="prob-gauge-box">
+                <span class="gauge-label">Lojistik Regresyon P(y=1|x)</span>
+                <strong id="sim-lr-prob" class="gauge-number">0.500</strong>
+                <span id="sim-class-badge" class="status-pill">TAŞKIN RİSKİ YÜKSEK</span>
+              </div>
+            </div>
+
+            <!-- EŞİK (THRESHOLD) VE PLATT KALİBRASYON KONTROLÜ (BÖLÜM 3.4) -->
+            <div class="calibration-controls">
+              <div class="threshold-slider-wrap">
+                <label for="input-threshold">
+                  Karar Eşiği (τ): <strong id="label-threshold-val">0.50</strong>
+                  <small id="label-threshold-hint">(Varsayılan orta nokta; τ=0.60 F1'i maksimize eder, τ=0.30 erken uyarı Recall'u artırır)</small>
+                </label>
+                <input type="range" id="input-threshold" min="0.10" max="0.90" step="0.05" value="0.50">
+              </div>
+              <label class="checkbox-label">
+                <input type="checkbox" id="check-platt-scaling">
+                <span>Platt Ölçekleme (Post-hoc Recalibration — Bölüm 3.4.3) Uygula</span>
+              </label>
+            </div>
+
+            <!-- FİZİKSEL HİDROLOJİ KARŞILIĞI (SCS-CN & RASYONEL METOT — BÖLÜM 3.2 & 4.1) -->
+            <div class="hydro-surrogate-strip">
+              <div class="hydro-item">
+                <span>SCS-CN Vekil Eğri No</span>
+                <strong id="hydro-cn">76</strong>
+              </div>
+              <div class="hydro-item">
+                <span>Tasarım Yağışı (P)</span>
+                <strong id="hydro-p">115 mm</strong>
+              </div>
+              <div class="hydro-item">
+                <span>Yüzeysel Akış (Q)</span>
+                <strong id="hydro-q">58.4 mm</strong>
+              </div>
+              <div class="hydro-item">
+                <span>Akış Katsayısı (Q/P)</span>
+                <strong id="hydro-ratio">%51</strong>
+              </div>
+            </div>
+
+            <!-- 6 SINIFLANDIRICI KARŞILAŞTIRMA LİSTESİ -->
+            <h3>6 Makine Öğrenmesi Sınıflandırıcısının Canlı Olasılık ve Karar Kıyaslaması</h3>
+            <div id="sim-models-list" class="models-bars-list"></div>
+          </div>
+
+          <!-- KATSAYI KATKISI VE KALİBRASYON GRAFİKLERİ -->
+          <div class="card charts-duo-card">
+            <div class="chart-box">
+              <h3>En Baskın Log-Odds (βⱼ · Δxⱼ) Gösterge Katkıları</h3>
+              <p class="subtitle">Bölüm 3.5 &amp; Tablo 6: Doğrusal hiperdüzlemde riski artıran (kırmızı) ve azaltan (mavi) faktörler.</p>
+              <div id="chart-contributions" class="contrib-bars"></div>
+            </div>
+            <div class="chart-box">
+              <h3>Eşik Duyarlılığı (Tablo 5) &amp; Güvenilirlik Diyagramı (Şekil 14)</h3>
+              <svg id="svg-calibration-chart" viewBox="0 0 420 230" role="img" aria-label="Güvenilirlik Diyagramı ve Karar Eşiği Duyarlılık Grafiği"></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEKME 3: MEKÂNSAL ÇAPRAZ DOĞRULAMA (LORO-CV) VE ÇOK ÖLÇEKLİ KIYASLAMA -->
+    <section id="tab-spatial-cv" class="tab-panel" aria-labelledby="heading-spatial" hidden>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 id="heading-spatial">Mekânsal Bölgeler Arası Çapraz Doğrulama (Leave-One-Region-Out CV) Laboratuvarı</h2>
+            <p class="subtitle">
+              Makale Bölüm 2.7.4, 3.9, 3.10 ve 4.7: Rastgele 70/30 bölme neden mekânsal transfer edilebilirliği abartır? Türkiye'nin 7 coğrafi bölgesinde canlı test edin.
+            </p>
+          </div>
+          <div class="spatial-controls">
+            <label class="control-group">
+              <span>Çözünürlük Ölçeği:</span>
+              <select id="select-spatial-scale">
+                <option value="province">Aşama II: İl Ölçeği (n = 81 İl • Makalede n = 3.140 County)</option>
+                <option value="district">Aşama III: İlçe / Alt-Havza Ölçeği (n = 972 Birim • Makalede n = 84.034 Tract)</option>
+              </select>
+            </label>
+            <label class="control-group">
+              <span>Hedef Değişken:</span>
+              <select id="select-spatial-target">
+                <option value="floodRiskHigh">Normalize Tarihsel Kayıp Oranı (FloodRiskHigh — Arındırılmış)</option>
+                <option value="rawLossHigh">Ham TL Beklenen Kayıp (Nüfus Karıştırıcılı)</option>
+              </select>
+            </label>
+            <button type="button" id="btn-run-spatial-cv" class="btn btn-primary">
+              Mekânsal Deneyi Yeniden Çalıştır
+            </button>
+          </div>
+        </div>
+
+        <div class="spatial-grid">
+          <div class="spatial-left">
+            <h3>Rastgele Bölme vs. Mekânsal Bölge-Dışı (LORO-CV) AUC Çöküşü ve Sıra Değişimi</h3>
+            <svg id="svg-spatial-collapse" viewBox="0 0 580 300" role="img" aria-label="Rastgele Bölme ve Mekânsal Çapraz Doğrulama AUC Karşılaştırma Grafiği"></svg>
+
+            <div class="explanation-callout">
+              <strong>Neden Ağaç Toplulukları Mekânsal Transferde En Çok Kaybeder? (Bölüm 4.7):</strong>
+              Rastgele 70/30 bölmede komşu iller/ilçeler hem eğitim hem test kümesine düşer; yüksek varyanslı derin ağaçlar (Random Forest, LightGBM, CatBoost) bölgesel taşkın prevalansını (örn. Karadeniz'de %83, İç Anadolu'da %8) ve yerel coğrafi vekilleri ezberleyerek yüksek AUC (0.79–0.85) üretir. Ancak bir coğrafi bölge tamamen eğitim dışı bırakıldığında (LORO-CV) bu yerel yapı kaybolur: ağaç modelleri %30–33 AUC kaybederken, tek bir küresel doğrusal sınır kuran <strong>Lojistik Regresyon</strong> ince ölçekte en az kaybı yaşayarak eğitilmemiş bölgelere en iyi transfer olan model (AUC = 0.64) haline gelir.
+            </div>
+          </div>
+
+          <div class="spatial-right">
+            <h3>Türkiye 7 Coğrafi Bölge LORO-CV Katman (Fold) Sonuçları</h3>
+            <div class="table-scroll">
+              <table class="data-table" id="table-spatial-folds">
+                <thead>
+                  <tr>
+                    <th>Dışarıda Bırakılan Test Bölgesi</th>
+                    <th>n (Eğitim)</th>
+                    <th>n (Test)</th>
+                    <th>Yüksek Risk Prevalansı</th>
+                    <th>AUC (Lojistik Reg.)</th>
+                    <th>AUC (Random Forest)</th>
+                    <th>AUC (LightGBM)</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-spatial-folds"></tbody>
+              </table>
+            </div>
+
+            <h3 class="mt-16">Makale Ana Kıyaslama Tablosu (Tablo 16 — 3 Ölçek Özeti)</h3>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ölçek / Aşama</th>
+                  <th>Örneklem (n)</th>
+                  <th>LR AUC (Rastgele)</th>
+                  <th>RF AUC (Rastgele)</th>
+                  <th>LR AUC (Mekânsal)</th>
+                  <th>RF AUC (Mekânsal)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Aşama I: Sentetik (Resurrectum Diluvium)</strong></td>
+                  <td>1.117.957</td>
+                  <td class="win-cell">0.93</td>
+                  <td>0.84</td>
+                  <td>n/a (Coğrafya yok)</td>
+                  <td>n/a (Coğrafya yok)</td>
+                </tr>
+                <tr>
+                  <td><strong>Aşama II: İl / County (FEMA NRI)</strong></td>
+                  <td>3.140 (TR: 81)</td>
+                  <td>0.67</td>
+                  <td class="win-cell">0.79</td>
+                  <td>0.53</td>
+                  <td class="win-cell">0.55</td>
+                </tr>
+                <tr>
+                  <td><strong>Aşama III: İlçe / Tract (FEMA NRI)</strong></td>
+                  <td>84.034 (TR: 972)</td>
+                  <td>0.74</td>
+                  <td class="win-cell">0.85</td>
+                  <td class="win-cell">0.64</td>
+                  <td>0.59</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEKME 4: KENDİ VERİNİ TEST ET (CSV) VE METODOLOJİ REHBERİ -->
+    <section id="tab-custom-csv" class="tab-panel" aria-labelledby="heading-csv" hidden>
+      <div class="panel-grid-csv">
+        <div class="card">
+          <h2 id="heading-csv">Kendi Havza / İl / İlçe CSV Verinizi Yükleyin ve 6 Modeli Çalıştırın</h2>
+          <p class="subtitle">
+            DSİ, AFAD İRAP veya belediye taşkın değerlendirme tablolarınızı (20 ordinal gösterge veya çoklu-tehlike yüzdelikleri) yükleyerek tarayıcı içinde anında toplu sınıflandırma yapın.
+          </p>
+
+          <div class="csv-actions-bar">
+            <label class="file-upload-btn btn btn-primary">
+              <span>CSV Dosyası Seçin (.csv)</span>
+              <input type="file" id="input-csv-file" accept=".csv" hidden>
+            </label>
+            <button type="button" id="btn-download-sample-csv" class="btn btn-secondary">
+              Örnek Türkiye Havza CSV Şablonu İndir
+            </button>
+            <button type="button" id="btn-run-sample-batch" class="btn btn-secondary">
+              81 İlin Tamamını Toplu Sınıflandır
+            </button>
+          </div>
+
+          <div id="csv-results-container" class="csv-results-area">
+            <!-- JS ile toplu sonuç tablosu doldurulur -->
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Makale Metodolojisi, Matematiksel Formüller ve Yapısal Sınırlılıklar (L1–L4)</h2>
+          <p class="subtitle">Benavides-Muñoz &amp; Benavides-Ortega (2026) çalışmasının tüm teknik mimarisi:</p>
+
+          <details name="methodology-accordion" open>
+            <summary>1. Problem Tanımı ve Neden "Adım-Fonksiyonu / Düşük Entropili" Özellik Uzayı?</summary>
+            <div class="details-body">
+              <p>
+                Fiziksel tabanlı 2B hidrodinamik modeller (Saint-Venant denklemleri) yüksek çözünürlüklü sayısal yükseklik modeli (DEM) ve sürekli akım-yağış telemetrisi gerektirir. Veri kısıtlı havzalarda ise saha değerlendirmeleri <strong>kesikli ordinal indekslere</strong> (0–19 tam sayı puanları) sıkıştırılır. Bu uzayda her değişken az sayıda tam sayı değeri aldığından karar ağaçları için bilgi verici bölünme noktası sayısı kısıtlıdır. Hedef değişken ağırlıklı bir toplamın monoton fonksiyonu olduğunda, tek bir doğrusal hiperdüzlem (Lojistik Regresyon) sınırı doğrudan yakalarken, ağaç toplulukları bunu çok sayıda eksene paralel basamakla yaklaşık olarak tahmin etmeye çalışır.
+              </p>
+            </div>
+          </details>
+
+          <details name="methodology-accordion">
+            <summary>2. Temel Denklemler (Denklem 1–4, SCS-CN ve Rasyonel Metot)</summary>
+            <div class="details-body">
+              <ul class="formula-list">
+                <li>
+                  <strong>Denklem (1) — Hedef İkilileştirme:</strong>
+                  <code>FloodOccurrence_i = 1 eğer FloodProbability_i ≥ τ (varsayılan 0.50), aksi halde 0</code>
+                </li>
+                <li>
+                  <strong>Denklem (2) — L2 Düzenlileştirmeli Lojistik Regresyon:</strong>
+                  <code>P(y = 1 | x) = 1 / [1 + exp(−(β₀ + βᵀx))]</code>, burada Odds Oranı <code>OR_j = exp(β_j)</code>.
+                </li>
+                <li>
+                  <strong>Denklem (3) — Matthews Korelasyon Katsayısı (MCC):</strong>
+                  <code>MCC = (TP·TN − FP·FN) / √[(TP+FP)(TP+FN)(TN+FP)(TN+FN)]</code> (Sınıf dengesizliğinde F1 ve Accuracy'den daha güvenilir tekil özet metriği).
+                </li>
+                <li>
+                  <strong>Denklem (4) — Brier Olasılık Kalibrasyon Skoru:</strong>
+                  <code>BS = (1/N) Σ (p̂_i − y_i)²</code> (0 = kusursuz kalibrasyon; Aşama I holdout BS = 0.11, Brier Skill Score ≈ %57 iyileşme).
+                </li>
+              </ul>
+            </div>
+          </details>
+
+          <details name="methodology-accordion">
+            <summary>3. Dört Yapısal Sınırlılık (L1–L4) ve Türkiye Uygulama İlkeleri (Bölüm 4.4 &amp; 4.8)</summary>
+            <div class="details-body">
+              <ul class="formula-list">
+                <li><strong>L1 (Ordinal İndeks Uzayı):</strong> 20 gösterge doğrudan hidrometrik akım/yağış ölçümü değildir; operasyonel taşkın erken uyarısı için DSİ akım gözlem istasyonları (AGİ) ve MGM radar/plüvyograf verileriyle fiziksel doğrulama şarttır.</li>
+                <li><strong>L2 (Sürekli Hedefin İkilileştirilmesi):</strong> 0.50 eşiği operasyonel bir kolaylıktır; erken uyarıda kaçırılan taşkın (FN) maliyeti yanlış alarmdan (FP) yüksek olduğundan eşik τ = 0.30–0.40 aralığına çekilebilir.</li>
+                <li><strong>L3 (Dağılımsal Örtüşme / Bilgi Sızıntısı):</strong> Aynı veri havuzundan ayrılan doğrulama kümeleri (örn. flood.csv AUC ≈ 1.00 veya FEMA Tribal tablosu) gerçek dış geçerlilik kanıtı değildir.</li>
+                <li><strong>L4 (Mekânsal Transfer Kısıtı):</strong> Ulusal ölçekte eğitilen bir model yeni bir coğrafi bölgeye uygulanırken rastgele bölme AUC değerine değil, <strong>Mekânsal Bölge-Dışı (LORO-CV)</strong> performansına göre seçilmelidir.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>
+      Kaynak Makale: <cite>Machine Learning Models for Flood-Risk Index Classification: A Comparative Evaluation with Multi-Scale Spatial Replication Using the FEMA National Risk Index</cite> — H. M. Benavides-Muñoz &amp; L. M. Benavides-Ortega, <em>Water</em> 2026, 18(20), 2515. Türkiye 81 İl / 7 Bölge / 25 Havza Karar Destek Uyarlaması.
+    </p>
+  </footer>
+
+  <!-- NATIVE DIALOG MODAL: MAKALE ÖZETİ VE DENKLEMLER -->
+  <dialog id="dialog-paper-summary" closedby="any" class="modal-dialog">
+    <form method="dialog" class="modal-content">
+      <header class="modal-header">
+        <h2>Makale Sentezi: Water 2026, 18(20), 2515</h2>
+        <button type="submit" value="close" class="btn-close" aria-label="Pencereyi Kapat">✕</button>
+      </header>
+      <div class="modal-body">
+        <p>
+          Bu çalışma, bileşik taşkın riski göstergelerinden yüksek ve düşük riskli havzaların/bölgelerin makine öğrenmesi ile sınıflandırılıp sınıflandırılamayacağını ve bu başarının <strong>gerçek coğrafya ile temas ettiğinde ayakta kalıp kalmadığını</strong> 3 aşamada ve 1,2 milyondan fazla gözlem üzerinde test etmektedir:
+        </p>
+        <ol>
+          <li>
+            <strong>Aşama I (Sentetik Kıyaslama — Resurrectum Diluvium, n = 1.117.957):</strong> 20 adet sınırlı tam sayı (0–19) ordinal göstergede 6 sınıflandırıcı (Lojistik Regresyon, Karar Ağacı, Random Forest, Gradient Boosting, LightGBM, CatBoost) karşılaştırılmıştır. <strong>Lojistik Regresyon (AUC = 0.93, F1 = 0.86, MCC = 0.70)</strong> en yüksek ayrım gücünü elde etmiştir. Nedeni, toplamsal ve düşük entropili tam sayı indekslerin tek bir doğrusal hiperdüzlemle doğrudan örtüşmesidir.
+          </li>
+          <li>
+            <strong>Aşama II (Gerçek Dünya İl/County Değerlendirmesi — n = 3.140, TR: 81 İl):</strong> Ham parasal taşkın kaybının nüfusla yüksek korelasyonlu (<code>r = 0.63</code>) olduğu tespit edilmiş ve hedef değişken <strong>maruziyet başına tarihsel kayıp oranına (HLRR)</strong> (<code>r = −0.03</code>) dönüştürülmüştür. Gerçek veride sıralama tersine dönmüş, rastgele bölmede <strong>Random Forest (AUC = 0.79)</strong> birinci olurken Lojistik Regresyon (0.67) beşinci sıraya gerilemiştir. Ancak bir coğrafi bölge tamamen eğitim dışı bırakıldığında (Mekânsal LORO-CV) tüm modeller şans seviyesine (AUC 0.52–0.55) düşmüştür.
+          </li>
+          <li>
+            <strong>Aşama III (İnce Ölçekli İlçe/Tract Replikasyonu — n = 84.034, TR: 972 Birim):</strong> Rastgele bölmede Random Forest yine liderdir (AUC = 0.85). Mekânsal çapraz doğrulamada ise ağaç toplulukları en büyük kaybı (%30–33) yaşarken, Lojistik Regresyon en az kaybı yaşayarak eğitilmemiş bölgelere en iyi transfer olan model (ortalama mekânsal AUC = 0.64) olmuştur.
+          </li>
+        </ol>
+      </div>
+      <footer class="modal-footer">
+        <button type="submit" value="ok" class="btn btn-primary">Anlaşıldı, Uygulamaya Dön</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
